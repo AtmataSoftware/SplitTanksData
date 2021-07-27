@@ -7,8 +7,12 @@ namespace SplitTanksData
     class Program
     {
         static Dictionary<string,StreamWriter> tanks = new();
-        static string path, header;
-        static int[] ParamIds = {622,625,626,628,661,692,717,719,726,728,729,730,756 };
+        static string path;
+        static string[] ParamIds = { "622", "625", "626", "628", "661", "692", "717", "719", "726", "728", "729", "730", "756" };
+        static string[] outputValues = new string[ParamIds.Length];
+        static string prevTankTitle = "";
+        static long prevTimeStamp = 0;
+
 
         static void Main(string[] args)
         {
@@ -16,12 +20,12 @@ namespace SplitTanksData
             var filename = Console.ReadLine();
             StreamReader reader = new StreamReader(File.OpenRead(filename));
 
-            header = reader.ReadLine();//header
+            var line = reader.ReadLine();//header
             path = filename.Replace(Path.GetFileName(filename), "");
             int counter = 0;
             while (!reader.EndOfStream)
             {
-                var line = reader.ReadLine();
+                line = reader.ReadLine();
                
                 try
                 {
@@ -42,23 +46,40 @@ namespace SplitTanksData
 
            
         }
-        static void  WriteLine(string line)
+        static void WriteLine(string line)
         {
             var values = line.Split(',');
             var streamWriter = GetStramWriter(values[0]);
-            values[4] = $"{Convert.ToDouble(values[4]) / 86400 + 25569}";
-            line = "";
-            foreach (var value in values)
-                line += value + ',';
-            streamWriter.WriteLine(line);
 
-
+            long newTimeStamp = Convert.ToInt64(values[4]);
+            if (prevTankTitle != values[0] || newTimeStamp != prevTimeStamp)
+            {
+                //new
+                if(prevTimeStamp != 0)
+                {            
+                    string newLine = "";
+                    foreach(var value in outputValues)
+                        newLine += value + ",";
+                    outputValues = new string[13];
+                    double newdateTime = newTimeStamp / 86400.0 + 25569.0;
+                    newLine += $"{(long)newdateTime} , {newdateTime % 1}";
+                    streamWriter.WriteLine(newLine);
+                }
+                prevTimeStamp = newTimeStamp;
+                prevTankTitle = values[0];
+            }
+            var index = Array.IndexOf(ParamIds, values[1]);
+            outputValues[index] = values[2];
         }
-        private static StreamWriter GetStramWriter(string tankTitle)
+        static StreamWriter GetStramWriter(string tankTitle)
         {
             if (tanks.ContainsKey(tankTitle))
                 return tanks[tankTitle];
             StreamWriter streamWriter = new(path+tankTitle+".csv");
+            string header = "";
+            foreach (var param in ParamIds)
+                header += $"{param},";
+            header += "Date,Time"; 
             streamWriter.WriteLine(header);
             tanks.Add(tankTitle, streamWriter);
             return streamWriter;
